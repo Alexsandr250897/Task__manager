@@ -11,20 +11,16 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 import os
 from pathlib import Path
-from dotenv import load_dotenv
-from os import getenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-dotenv_path = Path(BASE_DIR , 'task_manager', '.env')
-load_dotenv(dotenv_path)
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-xd=(ch_q1-b65_shtsfxuut*03og+k6943v%g7r3@tdu91q%z7"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+# SECRET_KEY = 'django-insecure-xd=(ch_q1-b65_shtsfxuut*03og+k6943v%g7r3@tdu91q%'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -43,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "tasks",
     "rest_framework",
+    "django_filters",
 ]
 
 MIDDLEWARE = [
@@ -81,14 +78,20 @@ WSGI_APPLICATION = "task_manager.wsgi.application"
 
 DATABASES = {
     'default': {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-        # 'ENGINE': 'django.db.backends.postgresql',
-        # 'NAME': getenv('DATABASE_NAME'),
-        # 'USER': getenv('DATABASE_USER'),
-        # 'PASSWORD':getenv('DATABASE_PASSWORD'),
-        # 'HOST': getenv('DATABASE_HOST'),
-        # 'PORT': '5432',
+        # "ENGINE": "django.db.backends.sqlite3",
+        # "NAME": BASE_DIR / "db.sqlite3",
+        'ENGINE':os.getenv('POSTGRES_ENGINE'),
+        'NAME': os.getenv('POSTGRES_DB'),
+        'USER':os.getenv('POSTGRES_USER'),
+        'PASSWORD':os.getenv('POSTGRES_PASSWORD'),
+        'HOST':os.getenv('POSTGRES_HOST'),
+        'PORT':os.getenv('POSTGRES_PORT'),
+        # 'ENGINE':'django.db.backends.postgresql',
+        # 'NAME':'postgres',
+        # 'USER':'postgres',
+        # 'PASSWORD':'1234',
+        # 'HOST':'localhost',
+        # 'PORT':'5434',
     }
 }
 
@@ -115,7 +118,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
-LANGUAGE_CODE = "Ru"
+LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
 
@@ -127,9 +130,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "static/"
 
 
 # Default primary key field type
@@ -139,6 +140,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 REST_FRAMEWORK = {
+
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend'),
 }

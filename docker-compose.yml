@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:13
+    env_file:
+      - task_manager/.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+  web:
+    build: .
+    env_file:
+      - task_manager/.env
+    volumes:
+      - $PWD:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+volumes:
+  postgres_data:
+

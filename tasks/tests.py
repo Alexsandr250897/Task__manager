@@ -3,73 +3,89 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 from .models import Task
+from .serializers import TaskSerializer
+
+
+
+@pytest.mark.django_db
+class TestTaskApi:
+    def test_create_task(self,client,user):
+        client.force_authenticate(user=user)
+        data = {
+            'title': 'Test Task',
+            'description': 'Test Task Description',
+            'status': 'new',
+            'priority': 'medium'
+        }
+
+        response = client.post(reverse('task-list'), data=data, format='json')
+        assert response.status_code ==status.HTTP_201_CREATED
+        assert Task.objects.count() == 1
+        assert TaskSerializer(Task.objects.first()).data == data
+
+    def test_get_task_list(self, client, user, task):
+        client.force_authenticate(user=user)
+        response = client.get(reverse('task_list'))
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert response.data[0] ['title'] == task.title
+
+
+    def test_get_task_by_id(self, client, task, user):
+        client.force_authenticate(user=user)
+        response = client.get(reverse('task-detail',args=task.id))
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['title'] == task.title
+
+
+    def test_update_task(self, client, task, user):
+        client.force_authenticate(user=user)
+        data ={'title':'updated task'}
+        response = client.put(reverse('task-detail',args=[task.id]),data=data, format='json')
+        assert response.status_code ==status.HTTP_200_OK
+        assert Task.objects.get(id=task.id).title == 'updated task'
+
+
+    def test_delete_task(self, task, user, client):
+        client.force_authenticate(user=user)
+        response = client.delete(reverse('task-detail',args=[task.id]))
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert Task.objects.count() == 0
+
+
+    def test_filter_task_by_priority(self, task, user, client):
+        client.force_authenticate(user=user)
+        response = client.get(reverse('task-list') + 'priority=high')
+        assert response.status_code == status.HTTP_200_OK
+        assert  len(response.data) == 1
+
+    def test_filter_task_by_created_at(self, task, user, client):
+        client.force_authenticate(user=user)
+        response = client.get(reverse('task-list') + f'created-at={task.created_at.isoformat()}')
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+
+
+
+    def test_pagination(self,task, user, client ):
+        client.force_authenticate(user=user)
+        response = client.get(reverse('task-list') + 'page=1')
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 10
+        assert response.data[0]['title'] == task[0].title
+
 
 @pytest.fixture
-def api_client():
-    return APIClient()
+def user():
+    user = User.objects.create_user(username='testuser', password='testpassword')
+    return user
+
 
 @pytest.fixture
-def create_task(db):
-    def make_task(**kwargs):
-        return Task.objects.create(**kwargs)
-    return make_task
+def client(user):
+    client = APIClient()
+    tokens = get_tokens_for_user(user)
+    client.credentials(HTTTP_AUTHORIZATION='Bearer' + tokens['access'])
+    return client
 
 
-
-@pytest.mark.django_db
-def test_create_task(api_client):
-    url = reverse('tasks-list')
-    data = {
-        'title': 'New Task',
-        'description': 'Task description',
-        'status': 'in progress',
-        'priority': 'high'
-    }
-    response = api_client.post(url, data, format='json')
-
-    assert response.status_code == status.HTTP_201_CREATED
-    assert Task.objects.count() == 1
-    assert Task.objects.get().title == 'New Task'
-
-
-@pytest.mark.django_db
-def test_get_tasks(api_client, create_task):
-    # Создадим несколько задач для теста
-    create_task(title="Task 1", status="in progress", priority="high")
-    create_task(title="Task 2", status="completed", priority="low")
-
-    url = reverse('tasks-list')
-    response = api_client.get(url)
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 2
-
-    response = api_client.get(url, {'status': 'in progress'})
-    assert len(response.data) == 1
-    assert response.data[0]['title'] == 'Task 1'
-
-    response = api_client.get(url, {'priority': 'high'})
-    assert len(response.data) == 1
-    assert response.data[0]['title'] == 'Task 1'
-
-
-@pytest.mark.django_db
-def test_get_task_by_id(api_client, create_task):
-    task = create_task(title="Task 1", status="in progress", priority="high")
-
-    url = reverse('tasks-detail', args=[task.id])
-    response = api_client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data['title'] == 'Task 1'
-    assert response.data['status'] == 'in progress'
-
-
-@pytest.mark.django_db
-def test_delete_task(api_client, create_task):
-    task = create_task(title="Task 1", status="in progress", priority="high")
-
-    url = reverse('tasks-detail', args=[task.id])
-    response = api_client.delete(url)
-
-    assert response.status_code == status.HTTP_204_NO_CONTENT
-    assert Task.objects.count() == 0
